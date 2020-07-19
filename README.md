@@ -20,4 +20,9 @@ sslkeylog.set_keylog("/root/sslkeylog.txt")
 
 doh2dns.py
 
-This script will run `tshark` and use the provided SSLKEYLOG file to decrypt TLS packets. DoH GET requests are identified and printed out.
+This script will use `pyshark` and the provided SSLKEYLOG file to decrypt TLS packets. The basic concept of operations is:
+1. Read a pcap that contains DoH packets.
+2. Correlate packet streams.
+3. Find DoH answers.
+4. Recreate a DNS packet using Scapy.
+5. Retransmit the DNS packet for capture by a NIDS.
