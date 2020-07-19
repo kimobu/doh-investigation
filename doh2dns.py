@@ -1,14 +1,10 @@
 import argparse
 import pyshark
-from scapy.all import * # type: ignore
+from scapy.all import *  # type: ignore
 from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description="Convert DNS over HTTPS \
                                  query/responses to normal DNS")
-parser.add_argument('--sniff', '-s',
-                    dest="sniff_interface",
-                    default="lo",
-                    help="The interface on which to sniff for DoH packets.")
 parser.add_argument('--replay', '-r',
                     dest="replay_interface",
                     default="lo",
@@ -30,8 +26,7 @@ def get_streams():
     cap = pyshark.FileCapture(args.pcap,
                               override_prefs={
                                   'tls.keylog_file': args.sslkeylogfile
-                              }
-                              )
+                              })
     cap.load_packets()
     streams = {}
 
@@ -61,12 +56,15 @@ def process_streams(streams):
                     # Client and Server fields are reversed
                     packetdata['client'] = packet.ip.dst
                     packetdata['server'] = packet.ip.src
-                    packetdata['query'] = packet.http2.get_field('dns_qry_name')
+                    packetdata['query'] =\
+                        packet.http2.get_field('dns_qry_name')
                     if packet.http2.get_field('dns_a'):
-                        packetdata['answer'] = packet.http2.get_field('dns_a') or "NXDOMAIN"
+                        packetdata['answer'] =\
+                            packet.http2.get_field('dns_a') or "NXDOMAIN"
                         packetdata['type'] = 'A'
                     else:
-                        packetdata['answer'] = packet.http2.get_field('dns_aaaa') or "NXDOMAIN"
+                        packetdata['answer'] =\
+                            packet.http2.get_field('dns_aaaa') or "NXDOMAIN"
                         packetdata['type'] = 'AAAA'
                     dns_answers.append(packetdata)
     print(f"[+] Found {len(dns_answers)} DNS answers")
@@ -85,13 +83,20 @@ def craft_query(packetdata):
 
 
 def replay_packet(packet):
-    send(packet.getlayer(IP), iface=args.replay_interface, verbose=1)
+    send(packet.getlayer(IP), iface=args.replay_interface, verbose=0)
 
 
-if __name__ == '__main__':
+def main():
     print(f"[ ] Opening {args.pcap} with keylog {args.sslkeylogfile}")
     streams = get_streams()
     dns_answers = process_streams(streams)
+    count = 1
     for ans in dns_answers:
         qry = craft_query(ans)
         replay_packet(qry)
+        print(f"[+] Sent {count} of {len(dns_answers)} packets")
+        count += 1
+
+
+if __name__ == '__main__':
+    main()
